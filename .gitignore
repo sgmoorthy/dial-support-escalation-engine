@@ -9,3 +9,4 @@ dist/
 coverage/
 ollama_data/
 *.log
+%HOME%.claude-omniroute/

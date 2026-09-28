@@ -1,73 +1,125 @@
 # EPAM DIAL Multi-Model Orchestrator
 
-A production-oriented reference implementation for a multi-model support orchestration system built with FastAPI, OpenAI-compatible client code, Ollama, and EPAM DIAL Core. The repository demonstrates dynamic routing between a fast classification model and a higher-reasoning model behind a single OpenAI-compatible API surface.
+A production-oriented reference implementation for a support automation workflow that routes customer issues through a lightweight classification model and a higher-reasoning escalation model. The platform exposes an OpenAI-compatible API surface, integrates with EPAM DIAL and local Ollama runtimes, and includes a lightweight React UI for interactive demo testing.
+
+## What this project does
+
+- Classifies incoming support tickets using a fast model route.
+- Reviews escalations using a reasoning-focused policy model.
+- Exposes JSON APIs for ticket triage and policy review.
+- Provides a browser UI for quick local testing and demos.
+- Runs either through Docker Compose or through a local dev setup.
 
 ## Architecture
 
 - DIAL Core: OpenAI-compatible proxy layer on port 8080.
-- Ollama: local model provider hosting `llama3:8b` and `phi3`.
-- FastAPI service: orchestrator for support workflows on port 8000.
-- React UI: lightweight chat panel on port 3000.
+- Ollama: local model provider for `llama3` and `phi3`.
+- FastAPI service: orchestration API on port 8000.
+- React UI: demo interface on port 3000.
 
 ## Local stack
 
-- `api`: FastAPI orchestrator with OpenAI Python SDK connected to DIAL Core.
-- `dial-core`: EPAM DIAL proxy that routes requests to Ollama.
-- `ollama`: local model runtime for `llama3` and `phi3`.
-- `ui`: React application for test and demo workflows.
+- `api`: FastAPI application using the OpenAI SDK against DIAL Core.
+- `dial-core`: EPAM DIAL proxy that forwards requests to Ollama.
+- `ollama`: model runtime for local inference.
+- `ui`: simple Vite + React interface for manual validation.
 
-## Quick start
+## Prerequisites
 
-1. Copy environment variables from the example file:
+- Docker Desktop or Docker Engine
+- Python 3.11+
+- Node.js 18+
+- Git
+
+## Quick start with Docker Compose
+
+1. Copy the environment template:
 
    ```bash
    cp .env.example .env
    ```
 
-2. Start the platform:
+2. Start the full platform:
 
    ```bash
    docker compose up --build
    ```
 
-3. Open the UI:
+3. Open the UI in a browser:
 
    - http://localhost:3000
 
-4. Health checks:
+4. Validate the services:
 
    - DIAL Core: http://localhost:8080
-   - API: http://localhost:8000/healthz
-   - Ollama: http://localhost:11434/api/tags
+   - API health: http://localhost:8000/healthz
+   - Ollama tags: http://localhost:11434/api/tags
+
+## Local development setup
+
+### Backend
+
+```bash
+python -m venv .venv
+. .venv/bin/activate  # Linux/macOS
+# or .\.venv\Scripts\activate  # Windows PowerShell
+python -m pip install -r app/requirements.txt
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Frontend
+
+```bash
+cd ui
+npm install
+npm run dev -- --host 0.0.0.0 --port 3000
+```
 
 ## API endpoints
 
-### Support ticket classification
+### 1) Support ticket classification
 
 ```http
 POST http://localhost:8000/api/support/ticket
 Content-Type: application/json
 ```
 
-Example body:
+Example request:
 
 ```json
 {
   "customer_email": "alex@example.com",
   "issue_summary": "Customer wants to cancel a subscription and requests a refund after 14 days.",
   "priority": "high",
-  "order_id": "ORD-9981"
+  "order_id": "ORD-9981",
+  "metadata": {
+    "channel": "web",
+    "source": "support-portal"
+  }
 }
 ```
 
-### Policy escalation
+Example response:
+
+```json
+{
+  "status": "triaged",
+  "category": "billing",
+  "confidence": 0.87,
+  "routing_model": "llama3",
+  "reasoning": "Request indicates a billing dispute and refund request; route to billing review.",
+  "recommended_action": "manual_review"
+}
+```
+
+### 2) Policy escalation review
 
 ```http
 POST http://localhost:8000/api/support/escalate
 Content-Type: application/json
 ```
 
-Example body:
+Example request:
 
 ```json
 {
@@ -82,10 +134,30 @@ Example body:
 }
 ```
 
-## Model routing
+Example response:
 
-- `llama3` is used for fast intent classification and routing.
-- `phi3` is used for policy-heavy, high-reasoning escalations and approvals.
+```json
+{
+  "status": "escalated",
+  "escalation_level": "manager_review",
+  "routing_model": "phi3",
+  "summary": "Policy exception request requires a managerial review because multiple policy criteria apply.",
+  "policy_notes": [
+    "Review the customer history for any service-affecting issues.",
+    "Apply the documented refund exception rules before approval."
+  ],
+  "next_steps": [
+    "Escalate to a senior support specialist.",
+    "Document the rationale used for the review."
+  ]
+}
+```
+
+## Model routing behavior
+
+- `llama3` is used for fast support classification and triage.
+- `phi3` is used for policy-heavy escalation reasoning and approval guidance.
+- If the remote OpenAI-compatible service is unavailable, the client includes a safe fallback response so the service remains usable in local demo scenarios.
 
 ## Repository layout
 
@@ -94,19 +166,23 @@ Example body:
 ├── app/
 │   ├── __init__.py
 │   ├── Dockerfile
+│   ├── README.md
 │   ├── config.py
 │   ├── main.py
 │   ├── models.py
 │   ├── requirements.txt
 │   ├── routers/
-│   │   ├── __init__.py
 │   │   └── support.py
 │   └── services/
-│       ├── __init__.py
 │       └── dial_client.py
 ├── docker/
 │   └── dial/
 │       └── config.yaml
+├── docs/
+│   ├── API.md
+│   └── SETUP.md
+├── tests/
+│   └── test_endpoints.py
 ├── ui/
 │   ├── Dockerfile
 │   ├── index.html
@@ -118,11 +194,39 @@ Example body:
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
+├── docker-compose.prod.yml
+├── LICENSE
+├── Makefile
 ├── README.md
-└── tests/
-    └── test_endpoints.py
+└── SECURITY.md
 ```
 
-## Notes
+## Verification and quality checks
 
-This repo is designed to run locally first and can serve as the base for CI/CD operations or a deployment pipeline. The OpenAI-compatible client ensures that the FastAPI service can easily switch between DIAL Core, local mock providers, or a cloud-hosted AI gateway without changing app logic.
+Run the project validation locally:
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -r app/requirements.txt pytest
+python -m pytest -q
+```
+
+Build the UI bundle:
+
+```bash
+cd ui
+npm install
+npm run build
+```
+
+## Troubleshooting
+
+- If the app cannot reach the model gateway, verify that DIAL Core and Ollama are both running.
+- If `localhost` connections fail inside Docker, confirm the environment variables align with the host mapping.
+- If the UI cannot reach the API, make sure port 8000 is not blocked and that the backend is started before the browser request is sent.
+- If the model names do not match your local runtime, update `FAST_MODEL` and `REASONING_MODEL` in `.env` or the container environment.
+
+## License
+
+This project is distributed under the MIT license. See [LICENSE](LICENSE) for more details.
