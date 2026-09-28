@@ -159,6 +159,13 @@ Example response:
 - `phi3` is used for policy-heavy escalation reasoning and approval guidance.
 - If the remote OpenAI-compatible service is unavailable, the client includes a safe fallback response so the service remains usable in local demo scenarios.
 
+## Documentation set
+
+- [docs/SETUP.md](docs/SETUP.md) — local and Docker setup instructions
+- [docs/API.md](docs/API.md) — request and response contract details
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system design and request flow
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — deployment and operational guidance
+
 ## Repository layout
 
 ```text
@@ -180,6 +187,8 @@ Example response:
 │       └── config.yaml
 ├── docs/
 │   ├── API.md
+│   ├── ARCHITECTURE.md
+│   ├── DEPLOYMENT.md
 │   └── SETUP.md
 ├── tests/
 │   └── test_endpoints.py
