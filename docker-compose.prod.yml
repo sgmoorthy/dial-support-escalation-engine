@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dial-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - dial-net
+
+  dial-core:
+    image: ghcr.io/epam/ai-dial-core:latest
+    container_name: dial-core
+    ports:
+      - "8080:8080"
+    environment:
+      DIAL_HOST: 0.0.0.0
+      DIAL_PORT: "8080"
+    volumes:
+      - ./docker/dial/config.yaml:/etc/ai-dial/config.yaml:ro
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    networks:
+      - dial-net
+
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: dial-support-api
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_BASE_URL: http://dial-core:8080/v1
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-dial-demo-key}
+      FAST_MODEL: ${FAST_MODEL:-llama3}
+      REASONING_MODEL: ${REASONING_MODEL:-phi3}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      - dial-core
+    restart: unless-stopped
+    networks:
+      - dial-net
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: dial-support-ui
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_DIAL_BASE_URL: http://localhost:8080/v1
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - dial-net
+
+volumes:
+  ollama_data:
+
+networks:
+  dial-net:
+    driver: bridge

@@ -1,0 +1,22 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+
+providers:
+  - id: ollama-local
+    type: openai
+    base_url: http://ollama:11434/v1
+    api_key: ollama
+    models:
+      - llama3
+      - phi3
+
+routing:
+  default: llama3
+  aliases:
+    llama3: llama3
+    phi3: phi3
+
+logging:
+  level: info
+  format: json
